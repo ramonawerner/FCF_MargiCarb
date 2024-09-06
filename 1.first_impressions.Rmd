@@ -1,0 +1,216 @@
+---
+title: "1.first_impressions"
+author: "Ramona Werner"
+date: "September 2024"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    collapsed: false
+    code_folding: hide
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+This document was last compiled: `r Sys.Date()`  
+
+***
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,  # Suppress warnings
+  message = FALSE,  # Suppress messages
+  error = FALSE     # Suppress error messages
+)
+```
+
+```{r, libraries}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r, functions-and-colors}
+findoutlier <- function(x, na.rm = FALSE) {
+  if (na.rm) {
+    x <- na.omit(x)
+  }
+  return(x < quantile(x, .25, na.rm = TRUE) - 1.5 * IQR(x, na.rm = TRUE) |
+         x > quantile(x, .75, na.rm = TRUE) + 1.5 * IQR(x, na.rm = TRUE))
+}
+
+MONO <- "#7A84B5"
+MIX <- "#669157"
+
+PRSE <- "#743E9A"
+ACSA <- "#009BB1"
+QURU <- "#92CCA4"
+PIST <- "#D9D9D9"
+```
+
+```{r, loading-df}
+data <- read.csv("rawdata_v1.csv", header=T)
+data <- data %>% 
+  select(pot:species, RCD_t0_mm, shoot_t0_cm, RCD_t1_mm, shoot_t1_cm, RCD_t2_mm, shoot_t2_cm) %>% 
+  mutate(across(c(RCD_t0_mm:shoot_t2_cm), as.numeric)) %>% 
+  mutate(across(c(pot:species), as.factor))
+data$treatment <- factor(data$treatment, levels=c("mono","mix"))
+data$species <- factor(data$species, levels=c("PRSE","ACSA","QURU","PIST"))
+
+dat <- data %>% 
+  pivot_longer(cols=RCD_t0_mm:shoot_t2_cm,
+               names_to="parameter",
+               values_to="value")
+```
+
+
+# first impressions
+
+## heights
+
+### all treatments
+
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("shoot_t0_cm","shoot_t1_cm","shoot_t2_cm"))
+
+m <- aov(value ~ parameter, df %>% filter(species=="PRSE"))
+summary(m)
+TukeyHSD(m) # 2 vs 0, 2 vs 1
+
+m <- aov(value ~ parameter, df %>% filter(species=="ACSA"))
+summary(m)
+
+m <- aov(value ~ parameter, df %>% filter(species=="QURU"))
+summary(m)
+TukeyHSD(m) # 2 vs 0
+
+m <- aov(value ~ parameter, df %>% filter(species=="PIST"))
+summary(m)
+
+ggplot(df, aes(parameter, value, fill=species)) +
+  theme_classic() + facet_wrap("species") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="height [cm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+```
+
+
+
+### mono vs mixed
+
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("shoot_t0_cm","shoot_t1_cm","shoot_t2_cm"))
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="PRSE"))
+summary(m) # only parameter
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="ACSA"))
+summary(m)
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="QURU"))
+summary(m) # only parameter
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="PIST"))
+summary(m)
+m <- aov(value ~ treatment, df %>% filter(species=="PIST"))
+summary(m) # differences between mono and mixed (and spec_comb -> Tukey: PIST-PIST-PRSE vs PIST-PIST-PIST 0.0014)
+TukeyHSD(m)
+
+ggplot(df, aes(parameter, value, fill=species)) +
+  theme_classic() + facet_grid(species~treatment) +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="height [cm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+
+ggplot(df %>% filter(species=="PIST"), aes(parameter, value, fill=species)) +
+  theme_classic() + facet_wrap("spec_comb") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="height [cm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+```
+
+
+
+## root collar diameter
+
+### all treatments
+
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("RCD_t0_mm","RCD_t1_mm","RCD_t2_mm"))
+
+m <- aov(value ~ parameter, df %>% filter(species=="PRSE"))
+summary(m)
+TukeyHSD(m) # 2 vs 0, 2 vs 1
+
+m <- aov(value ~ parameter, df %>% filter(species=="ACSA"))
+summary(m)
+TukeyHSD(m) # 1 vs 0, trend: 2 vs 0
+
+m <- aov(value ~ parameter, df %>% filter(species=="QURU"))
+summary(m)
+TukeyHSD(m) # 2 vs 0, 2 vs 1
+
+m <- aov(value ~ parameter, df %>% filter(species=="PIST"))
+summary(m)
+TukeyHSD(m) # 2 vs 0, 2 vs 1
+
+ggplot(df, aes(parameter, value, fill=species)) +
+  theme_classic() + facet_wrap("species") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="diameter [mm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+```
+
+
+
+### mono vs mixed
+
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("RCD_t0_mm","RCD_t1_mm","RCD_t2_mm"))
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="PRSE"))
+summary(m) # both parameter and treatment but not in interaction
+m <- aov(value ~ treatment, df %>% filter(species=="PRSE"))
+summary(m) # treatment alone not significant (same is true for spec_comb)
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="ACSA"))
+summary(m) # only parameter
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="QURU"))
+summary(m) # only parameter
+
+m <- aov(value ~ parameter*treatment, df %>% filter(species=="PIST"))
+summary(m) # only parameter
+
+ggplot(df, aes(parameter, value, fill=species)) +
+  theme_classic() + facet_grid(species~treatment) +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="diameter [mm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+
+ggplot(df %>% filter(species=="PRSE"), aes(parameter, value, fill=species)) +
+  theme_classic() + facet_wrap("spec_comb") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="height [cm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+```
+
+
+
