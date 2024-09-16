@@ -29,6 +29,7 @@ knitr::opts_chunk$set(
 ```{r, libraries}
 library(tidyverse)
 library(ggpubr)
+library(emmeans)
 ```
 
 ```{r, functions-and-colors}
@@ -56,6 +57,7 @@ data <- data %>%
   mutate(across(c(RCD_t0_mm:shoot_t2_cm), as.numeric)) %>% 
   mutate(across(c(pot:species), as.factor))
 data$treatment <- factor(data$treatment, levels=c("mono","mix"))
+data$role <- factor(data$role, levels=c("mono","dominant","subordinate"))
 data$species <- factor(data$species, levels=c("PRSE","ACSA","QURU","PIST"))
 
 dat <- data %>% 
@@ -74,28 +76,128 @@ dat <- data %>%
 ```{r}
 df <- dat %>% 
   filter(parameter %in% c("shoot_t0_cm","shoot_t1_cm","shoot_t2_cm"))
+df <- df %>%
+  mutate(parameter_print=fct_recode(parameter,
+                                    "t0"="shoot_t0_cm",
+                                    "t1"="shoot_t1_cm",
+                                    "t2"="shoot_t2_cm"))
 
-m <- aov(value ~ parameter, df %>% filter(species=="PRSE"))
+df <- df %>% 
+  mutate(date=ifelse(parameter_print=="t0","7/13/2024",
+                     ifelse(parameter_print=="t1","7/25/2024","8/22/2024")),
+         date=mdy(date))
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="PRSE"))
 summary(m)
 TukeyHSD(m) # 2 vs 0, 2 vs 1
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
 
-m <- aov(value ~ parameter, df %>% filter(species=="ACSA"))
+A <- ggplot(df %>% filter(species=="PRSE"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="b", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 7), label = "b", vjust = 1, size = 5) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Prunus serotina", y="height [cm]") +
+  ylim(0,70) +
+  theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
+        text=element_text(size=15))
+A
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="ACSA"))
 summary(m)
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
 
-m <- aov(value ~ parameter, df %>% filter(species=="QURU"))
+B <- ggplot(df %>% filter(species=="ACSA"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="a", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Acer saccharum", y="height [cm]") +
+  ylim(0,70) +
+  theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
+        text=element_text(size=15))
+B
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="QURU"))
 summary(m)
 TukeyHSD(m) # 2 vs 0
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
 
-m <- aov(value ~ parameter, df %>% filter(species=="PIST"))
-summary(m)
-
-ggplot(df, aes(parameter, value, fill=species)) +
-  theme_classic() + facet_wrap("species") +
+C <- ggplot(df %>% filter(species=="QURU"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
   geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="ab", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="b", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 7), label = "ab", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 7), label = "b", vjust = 1, size = 5) +
   scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
-  labs(x="time of measurement", y="height [cm]") +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Quercus rubra", y="height [cm]") +
+  ylim(0,70) +
   theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
         text=element_text(size=15))
+C
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="PIST"))
+summary(m)
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
+
+D <- ggplot(df %>% filter(species=="PIST"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="a", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 7), label = "a", vjust = 1, size = 5) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Pinus strobus", y="height [cm]") +
+  ylim(0,70) +
+  theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
+        text=element_text(size=15))
+D
+```
+
+```{r}
+ggarrange(A, B, C, D,
+          ncol=2, nrow=2, align="hv",
+          labels="AUTO")
 ```
 
 
@@ -104,33 +206,37 @@ ggplot(df, aes(parameter, value, fill=species)) +
 
 ```{r}
 df <- dat %>% 
-  filter(parameter %in% c("shoot_t0_cm","shoot_t1_cm","shoot_t2_cm"))
+  filter(parameter=="shoot_t2_cm")
+df <- df %>%
+  mutate(parameter_print=fct_recode(parameter, "t2"="shoot_t2_cm"))
+```
 
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="PRSE"))
-summary(m) # only parameter
-
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="ACSA"))
+```{r}
+m <- aov(value ~ treatment, df %>% filter(species=="PRSE"))
 summary(m)
 
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="QURU"))
-summary(m) # only parameter
-
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="PIST"))
+m <- aov(value ~ treatment, df %>% filter(species=="ACSA"))
 summary(m)
+
+m <- aov(value ~ treatment, df %>% filter(species=="QURU"))
+summary(m)
+
 m <- aov(value ~ treatment, df %>% filter(species=="PIST"))
-summary(m) # differences between mono and mixed (and spec_comb -> Tukey: PIST-PIST-PRSE vs PIST-PIST-PIST 0.0014)
-TukeyHSD(m)
+summary(m)
+```
 
-ggplot(df, aes(parameter, value, fill=species)) +
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("shoot_t0_cm","shoot_t1_cm","shoot_t2_cm"))
+df <- df %>%
+  mutate(parameter_print=fct_recode(parameter,
+                                    "t0"="shoot_t0_cm",
+                                    "t1"="shoot_t1_cm",
+                                    "t2"="shoot_t2_cm"))
+
+ggplot(df, aes(parameter_print, value, fill=species)) +
   theme_classic() + facet_grid(species~treatment) +
-  geom_jitter(size=2, width=0.1, shape=21) +
-  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
-  labs(x="time of measurement", y="height [cm]") +
-  theme(legend.position="none",
-        text=element_text(size=15))
-
-ggplot(df %>% filter(species=="PIST"), aes(parameter, value, fill=species)) +
-  theme_classic() + facet_wrap("spec_comb") +
+  geom_boxplot(width=0.4, alpha=0.2) +
   geom_jitter(size=2, width=0.1, shape=21) +
   scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
   labs(x="time of measurement", y="height [cm]") +
@@ -147,30 +253,130 @@ ggplot(df %>% filter(species=="PIST"), aes(parameter, value, fill=species)) +
 ```{r}
 df <- dat %>% 
   filter(parameter %in% c("RCD_t0_mm","RCD_t1_mm","RCD_t2_mm"))
+df <- df %>%
+  mutate(parameter_print=fct_recode(parameter,
+                                    "t0"="RCD_t0_mm",
+                                    "t1"="RCD_t1_mm",
+                                    "t2"="RCD_t2_mm"))
 
-m <- aov(value ~ parameter, df %>% filter(species=="PRSE"))
+df <- df %>% 
+  mutate(date=ifelse(parameter_print=="t0","7/13/2024",
+                     ifelse(parameter_print=="t1","7/25/2024","8/22/2024")),
+         date=mdy(date))
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="PRSE"))
 summary(m)
 TukeyHSD(m) # 2 vs 0, 2 vs 1
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
 
-m <- aov(value ~ parameter, df %>% filter(species=="ACSA"))
-summary(m)
-TukeyHSD(m) # 1 vs 0, trend: 2 vs 0
-
-m <- aov(value ~ parameter, df %>% filter(species=="QURU"))
-summary(m)
-TukeyHSD(m) # 2 vs 0, 2 vs 1
-
-m <- aov(value ~ parameter, df %>% filter(species=="PIST"))
-summary(m)
-TukeyHSD(m) # 2 vs 0, 2 vs 1
-
-ggplot(df, aes(parameter, value, fill=species)) +
-  theme_classic() + facet_wrap("species") +
+A <- ggplot(df %>% filter(species=="PRSE"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
   geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="b", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 0.7), label = "b", vjust = 1, size = 5) +
   scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
-  labs(x="time of measurement", y="diameter [mm]") +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Prunus serotina", y="diameter [mm]") +
+  ylim(0,10) +
   theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
         text=element_text(size=15))
+A
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="ACSA"))
+summary(m)
+TukeyHSD(m) # 1 vs 0
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
+
+B <- ggplot(df %>% filter(species=="ACSA"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="b", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="ab", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 0.7), label = "b", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 0.7), label = "ab", vjust = 1, size = 5) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Acer saccharum", y="diameter [mm]") +
+  ylim(0,10) +
+  theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
+        text=element_text(size=15))
+B
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="QURU"))
+summary(m)
+TukeyHSD(m) # 2 vs 0, 2 vs 1
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
+
+C <- ggplot(df %>% filter(species=="QURU"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="b", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 0.7), label = "b", vjust = 1, size = 5) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Quercus rubra", y="diameter [mm]") +
+  ylim(0,10) +
+  theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
+        text=element_text(size=15))
+C
+```
+
+```{r}
+m <- aov(value ~ parameter_print, df %>% filter(species=="PIST"))
+summary(m)
+TukeyHSD(m) # 2 vs 0, 2 vs 1
+m_means <- emmeans(m, pairwise~parameter_print, type="response", adjust="tukey")
+
+D <- ggplot(df %>% filter(species=="PIST"), aes(date, value, fill=species)) +
+  theme_classic() +
+  geom_smooth(alpha=0, color="black", linetype="dashed") +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  #geom_text(aes(x=1, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=2, y=max(value)+7), label="a", vjust=1, size=5) +
+  #geom_text(aes(x=3, y=max(value)+7), label="b", vjust=1, size=5) +
+  geom_text(aes(x = as.Date("2024-07-13"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-07-25"), y = max(value) + 0.7), label = "a", vjust = 1, size = 5) +
+  geom_text(aes(x = as.Date("2024-08-22"), y = max(value) + 0.7), label = "b", vjust = 1, size = 5) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  scale_x_date(date_labels="%m/%d", breaks=as.Date(c("2024-07-13","2024-07-25","2024-08-22"))) +
+  labs(subtitle="Pinus strobus", y="diameter [mm]") +
+  ylim(0,10) +
+  theme(legend.position="none",
+        plot.subtitle=element_text(face="italic"),
+        axis.title.x=element_blank(),
+        text=element_text(size=15))
+D
+```
+
+```{r}
+ggarrange(A, B, C, D,
+          ncol=2, nrow=2, align="hv",
+          labels="AUTO")
 ```
 
 
@@ -179,38 +385,106 @@ ggplot(df, aes(parameter, value, fill=species)) +
 
 ```{r}
 df <- dat %>% 
-  filter(parameter %in% c("RCD_t0_mm","RCD_t1_mm","RCD_t2_mm"))
+  filter(parameter=="RCD_t2_mm")
 
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="PRSE"))
-summary(m) # both parameter and treatment but not in interaction
 m <- aov(value ~ treatment, df %>% filter(species=="PRSE"))
-summary(m) # treatment alone not significant (same is true for spec_comb)
+summary(m)
 
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="ACSA"))
-summary(m) # only parameter
+m <- aov(value ~ treatment, df %>% filter(species=="ACSA"))
+summary(m)
 
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="QURU"))
-summary(m) # only parameter
+m <- aov(value ~ treatment, df %>% filter(species=="QURU"))
+summary(m)
 
-m <- aov(value ~ parameter*treatment, df %>% filter(species=="PIST"))
-summary(m) # only parameter
+m <- aov(value ~ treatment, df %>% filter(species=="PIST"))
+summary(m)
+```
 
-ggplot(df, aes(parameter, value, fill=species)) +
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("RCD_t0_mm","RCD_t1_mm","RCD_t2_mm"))
+df <- df %>%
+  mutate(parameter_print=fct_recode(parameter,
+                                    "t0"="RCD_t0_mm",
+                                    "t1"="RCD_t1_mm",
+                                    "t2"="RCD_t2_mm"))
+
+ggplot(df, aes(parameter_print, value, fill=species)) +
   theme_classic() + facet_grid(species~treatment) +
+  geom_boxplot(width=0.4, alpha=0.2) +
   geom_jitter(size=2, width=0.1, shape=21) +
   scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
   labs(x="time of measurement", y="diameter [mm]") +
-  theme(legend.position="none",
-        text=element_text(size=15))
-
-ggplot(df %>% filter(species=="PRSE"), aes(parameter, value, fill=species)) +
-  theme_classic() + facet_wrap("spec_comb") +
-  geom_jitter(size=2, width=0.1, shape=21) +
-  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
-  labs(x="time of measurement", y="height [cm]") +
   theme(legend.position="none",
         text=element_text(size=15))
 ```
 
 
 
+### role
+
+```{r}
+df <- dat %>% 
+  filter(parameter %in% c("RCD_t0_mm","RCD_t1_mm","RCD_t2_mm"))
+df <- df %>%
+  mutate(parameter_print=fct_recode(parameter,
+                                    "t0"="RCD_t0_mm",
+                                    "t1"="RCD_t1_mm",
+                                    "t2"="RCD_t2_mm"))
+```
+
+```{r}
+ggplot(df %>% filter(species=="PRSE"), aes(parameter_print, value, fill=species)) +
+  theme_classic() + facet_wrap("role") +
+  geom_boxplot(width=0.4, alpha=0.2) +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="diameter [mm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+
+m <- aov(value ~ role, df %>% filter(species=="PRSE" & parameter_print=="t2"))
+summary(m)
+```
+
+```{r}
+ggplot(df %>% filter(species=="ACSA"), aes(parameter_print, value, fill=species)) +
+  theme_classic() + facet_wrap("role") +
+  geom_boxplot(width=0.4, alpha=0.2) +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="diameter [mm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+
+m <- aov(value ~ role, df %>% filter(species=="ACSA" & parameter_print=="t2"))
+summary(m)
+```
+
+```{r}
+ggplot(df %>% filter(species=="QURU"), aes(parameter_print, value, fill=species)) +
+  theme_classic() + facet_wrap("role") +
+  geom_boxplot(width=0.4, alpha=0.2) +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="diameter [mm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+
+m <- aov(value ~ role, df %>% filter(species=="QURU" & parameter_print=="t2"))
+summary(m)
+```
+
+```{r}
+ggplot(df %>% filter(species=="PIST"), aes(parameter_print, value, fill=species)) +
+  theme_classic() + facet_wrap("role") +
+  geom_boxplot(width=0.4, alpha=0.2) +
+  geom_jitter(size=2, width=0.1, shape=21) +
+  scale_fill_manual(values=c("ACSA"=ACSA, "PRSE"=PRSE, "QURU"=QURU, "PIST"=PIST)) +
+  labs(x="time of measurement", y="diameter [mm]") +
+  theme(legend.position="none",
+        text=element_text(size=15))
+
+m <- aov(value ~ role, df %>% filter(species=="PIST" & parameter_print=="t2"))
+summary(m)
+```
